@@ -1,0 +1,124 @@
+"use client";
+
+import Link from "next/link";
+import {
+  X,
+  MapPin,
+  Mountain,
+  ShieldAlert,
+  Building2,
+  Hash,
+  Users,
+  ArrowUpRight,
+} from "lucide-react";
+import type { PlazaPublica } from "@/types/padron";
+import { Star5 } from "@/components/ui/Star5";
+
+interface PlazaDetailPanelProps {
+  plaza: PlazaPublica;
+  onClose: () => void;
+}
+
+export function PlazaDetailPanel({ plaza, onClose }: PlazaDetailPanelProps) {
+  const gdNum = plaza.gd.split("-")[1];
+
+  return (
+    <div className="qn-scroll absolute right-4 top-4 max-h-[calc(100%-32px)] w-[420px] animate-qn-slide-in-right overflow-y-auto rounded-2xl border border-qn-border bg-qn-paper shadow-xl">
+      {/* Header */}
+      <div className="sticky top-0 z-10 border-b border-qn-border-soft bg-qn-paper/95 px-6 py-4 backdrop-blur">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1">
+            <span className={`mb-2 inline-block rounded px-1.5 py-0.5 text-[10px] font-medium qn-gd-${gdNum}`}>
+              {plaza.gd}
+            </span>
+            <h2 className="qn-display leading-tight text-qn-ink" style={{ fontSize: 22 }}>
+              {plaza.establecimiento}
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="shrink-0 rounded-full p-1.5 text-qn-text-muted hover:bg-qn-soft hover:text-qn-ink"
+            aria-label="Cerrar"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="mt-2 flex items-center gap-1.5 text-sm text-qn-text-muted">
+          <MapPin size={13} />
+          {plaza.distrito} · {plaza.provincia}, {plaza.departamento}
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="px-6 py-4">
+        {/* Rating */}
+        {plaza.total_reviews > 0 && plaza.avg_rating ? (
+          <div className="mb-4 flex items-center gap-2 rounded-xl bg-qn-soft p-3">
+            <Star5 value={plaza.avg_rating} size={16} />
+            <span className="text-sm font-medium text-qn-ink">
+              {plaza.avg_rating.toFixed(1)}
+            </span>
+            <span className="text-xs text-qn-text-muted">
+              ({plaza.total_reviews} {plaza.total_reviews === 1 ? "reseña" : "reseñas"})
+            </span>
+          </div>
+        ) : (
+          <div className="mb-4 rounded-xl border border-dashed border-qn-border bg-qn-warm p-3 text-xs text-qn-text-muted">
+            Aún no hay reseñas verificadas. Si serviste aquí, podrás reseñar tras los primeros
+            30 días con cuenta verificada.
+          </div>
+        )}
+
+        {/* Datos */}
+        <div className="space-y-3 text-sm">
+          <DataRow label="Profesión" value={plaza.profesion_nombre} />
+          <DataRow label="Plazas ofertadas" value={String(plaza.n_plazas)} />
+          {plaza.categoria && <DataRow label="Categoría" value={plaza.categoria} />}
+          <DataRow label="Modalidad" value={plaza.modalidad === "remunerada" ? "Remunerada" : "Equivalente"} />
+          {plaza.diresa && <DataRow label="DIRESA" value={plaza.diresa} />}
+          {plaza.institucion_ofertante && (
+            <DataRow label="Institución" value={plaza.institucion_ofertante} />
+          )}
+          <DataRow label="RENIPRESS" value={plaza.renipress} />
+          {plaza.presupuesto && <DataRow label="Presupuesto" value={plaza.presupuesto} />}
+
+          {/* Bonos */}
+          {(plaza.zaf || plaza.ze) && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {plaza.zaf && (
+                <div className="flex items-center gap-1.5 rounded-full bg-qn-terracotta/10 px-3 py-1 text-xs text-qn-terracotta-dark">
+                  <Mountain size={12} />
+                  Bono ZAF (zona alejada)
+                </div>
+              )}
+              {plaza.ze && (
+                <div className="flex items-center gap-1.5 rounded-full bg-qn-rust/10 px-3 py-1 text-xs text-qn-rust">
+                  <ShieldAlert size={12} />
+                  Bono ZE (VRAEM, zona en emergencia)
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Link a página de detalle (SEO friendly) */}
+        <Link
+          href={`/plazas/${plaza.renipress}`}
+          className="mt-6 flex items-center justify-center gap-1 rounded-full border border-qn-ink py-2.5 text-sm text-qn-ink hover:bg-qn-ink hover:text-qn-bg"
+        >
+          Ver ficha completa <ArrowUpRight size={14} />
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function DataRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 border-b border-qn-border-soft pb-2 last:border-0">
+      <span className="text-xs uppercase tracking-qn-wide text-qn-text-subtle">{label}</span>
+      <span className="text-right text-sm text-qn-ink">{value}</span>
+    </div>
+  );
+}

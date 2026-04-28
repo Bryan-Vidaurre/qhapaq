@@ -1,0 +1,64 @@
+[
+  { "id": "MEDICINA", "nombre": "Medicina", "familia": "MEDICINA_HUMANA", "orden": 1 },
+  { "id": "ENFERMERIA", "nombre": "Enfermería", "familia": "ENFERMERIA", "orden": 2 },
+  { "id": "OBSTETRICIA", "nombre": "Obstetricia", "familia": "OBSTETRICIA", "orden": 3 },
+  { "id": "ODONTOLOGIA", "nombre": "Odontología", "familia": "ODONTOLOGIA", "orden": 4 },
+  { "id": "PSICOLOGIA", "nombre": "Psicología", "familia": "PSICOLOGIA", "orden": 5 },
+  { "id": "NUTRICION", "nombre": "Nutrición", "familia": "NUTRICION", "orden": 6 },
+  {
+    "id": "QUIMICO FARMACEUTICO",
+    "nombre": "Químico Farmacéutico",
+    "familia": "QUIMICO_FARMACEUTICO",
+    "orden": 7
+  },
+  { "id": "BIOLOGIA", "nombre": "Biología", "familia": "BIOLOGIA", "orden": 8 },
+  { "id": "TRABAJO SOCIAL", "nombre": "Trabajo Social", "familia": "TRABAJO_SOCIAL", "orden": 9 },
+  {
+    "id": "MEDICINA VETERINARIA",
+    "nombre": "Medicina Veterinaria",
+    "familia": "MEDICINA_VETERINARIA",
+    "orden": 10
+  },
+  {
+    "id": "INGENIERIA SANITARIA",
+    "nombre": "Ingeniería Sanitaria",
+    "familia": "INGENIERIA_SANITARIA",
+    "orden": 11
+  },
+  {
+    "id": "TM - LABORATORIO CLINICO",
+    "nombre": "Tecnología Médica · Laboratorio Clínico",
+    "familia": "TECNOLOGIA_MEDICA",
+    "orden": 12
+  },
+  {
+    "id": "TM - TERAPIA FISICA",
+    "nombre": "Tecnología Médica · Terapia Física",
+    "familia": "TECNOLOGIA_MEDICA",
+    "orden": 13
+  },
+  {
+    "id": "TM - RADIOLOGIA",
+    "nombre": "Tecnología Médica · Radiología",
+    "familia": "TECNOLOGIA_MEDICA",
+    "orden": 14
+  },
+  {
+    "id": "TM - TERAPIA LENGUAJE",
+    "nombre": "Tecnología Médica · Terapia de Lenguaje",
+    "familia": "TECNOLOGIA_MEDICA",
+    "orden": 15
+  },
+  {
+    "id": "TM - TERAPIA OCUPACIONAL",
+    "nombre": "Tecnología Médica · Terapia Ocupacional",
+    "familia": "TECNOLOGIA_MEDICA",
+    "orden": 16
+  },
+  {
+    "id": "TM - OPTOMETRIA",
+    "nombre": "Tecnología Médica · Optometría",
+    "familia": "TECNOLOGIA_MEDICA",
+    "orden": 17
+  }
+]

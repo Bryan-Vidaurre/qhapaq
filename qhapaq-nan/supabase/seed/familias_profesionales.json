@@ -1,0 +1,62 @@
+[
+  {
+    "id": "MEDICINA_HUMANA",
+    "nombre": "Medicina",
+    "orden": 1
+  },
+  {
+    "id": "ENFERMERIA",
+    "nombre": "Enfermería",
+    "orden": 2
+  },
+  {
+    "id": "OBSTETRICIA",
+    "nombre": "Obstetricia",
+    "orden": 3
+  },
+  {
+    "id": "ODONTOLOGIA",
+    "nombre": "Odontología",
+    "orden": 4
+  },
+  {
+    "id": "PSICOLOGIA",
+    "nombre": "Psicología",
+    "orden": 5
+  },
+  {
+    "id": "NUTRICION",
+    "nombre": "Nutrición",
+    "orden": 6
+  },
+  {
+    "id": "QUIMICO_FARMACEUTICO",
+    "nombre": "Químico Farmacéutico",
+    "orden": 7
+  },
+  {
+    "id": "BIOLOGIA",
+    "nombre": "Biología",
+    "orden": 8
+  },
+  {
+    "id": "TRABAJO_SOCIAL",
+    "nombre": "Trabajo Social",
+    "orden": 9
+  },
+  {
+    "id": "MEDICINA_VETERINARIA",
+    "nombre": "Medicina Veterinaria",
+    "orden": 10
+  },
+  {
+    "id": "INGENIERIA_SANITARIA",
+    "nombre": "Ingeniería Sanitaria",
+    "orden": 11
+  },
+  {
+    "id": "TECNOLOGIA_MEDICA",
+    "nombre": "Tecnología Médica",
+    "orden": 12
+  }
+]

@@ -6,23 +6,26 @@ import { createClient } from "@/lib/supabase/server";
  * GET /api/plazas
  *
  * Parámetros (todos opcionales):
- *   q          texto libre (FTS sobre establecimiento + ubicación + profesión)
- *   profesion  ID exacto de profesión
- *   familia    ID de familia profesional
- *   gd         GD-1..GD-5
- *   zaf        true/false
- *   ze         true/false
- *   modalidad  remunerada/equivalente
+ *   q           texto libre (FTS sobre establecimiento + ubicación + profesión)
+ *   profesion   ID exacto de profesión (single, legacy)
+ *   profesiones IDs de profesiones separados por coma (multi-select)
+ *   familia     ID de familia profesional
+ *   gd          GD-1..GD-5
+ *   zaf         true/false
+ *   ze          true/false
+ *   modalidad   remunerada/equivalente
  *   departamento, provincia, distrito
- *   semestre   default '2026-I'
- *   bbox       'south,west,north,east' para filtrar por viewport del mapa
- *   page       default 1
- *   pageSize   default 50, máx 200
+ *   semestre    default '2026-I'
+ *   bbox        'south,west,north,east' para filtrar por viewport del mapa
+ *   page        default 1
+ *   pageSize    default 50, máx 200
  */
 
 const QuerySchema = z.object({
   q: z.string().max(200).optional(),
   profesion: z.string().max(80).optional(),
+  // Multi-select: "MEDICINA,ENFERMERIA,OBSTETRICIA"
+  profesiones: z.string().max(1000).optional(),
   familia: z.string().max(80).optional(),
   gd: z.enum(["GD-1", "GD-2", "GD-3", "GD-4", "GD-5"]).optional(),
   zaf: z.preprocess((v) => v === "true", z.boolean()).optional(),
@@ -59,7 +62,17 @@ export async function GET(request: NextRequest) {
     .select("*", { count: "exact" })
     .eq("semestre", f.semestre);
 
-  if (f.profesion) query = query.eq("profesion_id", f.profesion);
+  // Multi-select profesiones (comma-separated) takes priority over single profesion
+  if (f.profesiones) {
+    const ids = f.profesiones.split(",").map((s) => s.trim()).filter(Boolean);
+    if (ids.length === 1) {
+      query = query.eq("profesion_id", ids[0]);
+    } else if (ids.length > 1) {
+      query = query.in("profesion_id", ids);
+    }
+  } else if (f.profesion) {
+    query = query.eq("profesion_id", f.profesion);
+  }
   if (f.familia) query = query.eq("profesion_familia", f.familia);
   if (f.gd) query = query.eq("gd", f.gd);
   if (f.modalidad) query = query.eq("modalidad", f.modalidad);

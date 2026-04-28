@@ -1,14 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { Search, Filter, X } from "lucide-react";
-import { FilterChip } from "@/components/ui/FilterChip";
+import {
+  Search,
+  X,
+  SlidersHorizontal,
+  ChevronDown,
+  ChevronUp,
+  Activity,
+  CheckCircle2,
+} from "lucide-react";
 import { PlazaListItem } from "@/components/plaza/PlazaListItem";
 import { PlazaDetailPanel } from "@/components/plaza/PlazaDetailPanel";
+import { createClient } from "@/lib/supabase/client";
 import type { GD, PlazaPublica } from "@/types/padron";
 
-// Leaflet rompe en SSR — cargar solo en cliente
 const LeafletMap = dynamic(
   () => import("@/components/plaza/LeafletMap").then((m) => m.LeafletMap),
   {
@@ -23,155 +30,401 @@ const LeafletMap = dynamic(
 
 const GD_OPTIONS: GD[] = ["GD-1", "GD-2", "GD-3", "GD-4", "GD-5"];
 
+const PROFESIONES = [
+  { id: "MEDICINA", label: "Medicina" },
+  { id: "ENFERMERIA", label: "Enfermería" },
+  { id: "OBSTETRICIA", label: "Obstetricia" },
+  { id: "ODONTOLOGIA", label: "Odontología" },
+  { id: "PSICOLOGIA", label: "Psicología" },
+  { id: "NUTRICION", label: "Nutrición" },
+  { id: "QUIMICO FARMACEUTICO", label: "Quím. Farmacéutico" },
+  { id: "BIOLOGIA", label: "Biología" },
+  { id: "TRABAJO SOCIAL", label: "Trabajo Social" },
+  { id: "MEDICINA VETERINARIA", label: "Med. Veterinaria" },
+  { id: "INGENIERIA SANITARIA", label: "Ing. Sanitaria" },
+  { id: "TM - LABORATORIO CLINICO", label: "T.M. Laboratorio" },
+  { id: "TM - TERAPIA FISICA", label: "T.M. Terapia Física" },
+  { id: "TM - RADIOLOGIA", label: "T.M. Radiología" },
+  { id: "TM - TERAPIA LENGUAJE", label: "T.M. T. Lenguaje" },
+  { id: "TM - TERAPIA OCUPACIONAL", label: "T.M. T. Ocupacional" },
+  { id: "TM - OPTOMETRIA", label: "T.M. Optometría" },
+];
+
+const DEPARTAMENTOS = [
+  "AMAZONAS", "ANCASH", "APURIMAC", "AREQUIPA", "AYACUCHO",
+  "CAJAMARCA", "CALLAO", "CUSCO", "HUANCAVELICA", "HUANUCO",
+  "ICA", "JUNIN", "LA LIBERTAD", "LAMBAYEQUE", "LIMA",
+  "LORETO", "MADRE DE DIOS", "MOQUEGUA", "PASCO", "PIURA",
+  "PUNO", "SAN MARTIN", "TACNA", "TUMBES", "UCAYALI",
+];
+
 interface ApiResponse {
   data: PlazaPublica[];
-  pagination: {
-    page: number;
-    pageSize: number;
-    total: number;
-    totalPages: number;
-  };
+  pagination: { page: number; pageSize: number; total: number; totalPages: number };
+}
+
+function FilterSection({
+  title,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="border-b border-qn-border-soft">
+      <button
+        className="flex w-full items-center justify-between px-4 py-3 text-xs font-semibold uppercase tracking-qn-wide text-qn-text-subtle hover:text-qn-ink"
+        onClick={onToggle}
+      >
+        {title}
+        {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+      </button>
+      {open && <div className="px-4 pb-4">{children}</div>}
+    </div>
+  );
 }
 
 export function PlazasExplorer() {
+  // Filter state
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
-  const [profesion, setProfesion] = useState<string | null>(null);
+  const [profesiones, setProfesiones] = useState<string[]>([]);
+  const [modalidad, setModalidad] = useState<"remunerada" | "equivalente" | null>(null);
   const [gd, setGd] = useState<GD | null>(null);
   const [zaf, setZaf] = useState<boolean | null>(null);
   const [ze, setZe] = useState<boolean | null>(null);
+  const [departamento, setDepartamento] = useState<string | null>(null);
+  const [deptSearch, setDeptSearch] = useState("");
 
+  // UI state
+  const [showFilters, setShowFilters] = useState(false);
+  const [secProfOpen, setSecProfOpen] = useState(true);
+  const [secModalidadOpen, setSecModalidadOpen] = useState(true);
+  const [secUbicOpen, setSecUbicOpen] = useState(false);
+  const [secGdOpen, setSecGdOpen] = useState(false);
+  const [secBonosOpen, setSecBonosOpen] = useState(false);
+
+  // Data state
   const [plazas, setPlazas] = useState<PlazaPublica[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<PlazaPublica | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
 
-  // Debounce de búsqueda
+  // Real-time adjudicaciones
+  const [adjudicaciones, setAdjudicaciones] = useState<number>(0);
+  const [recentFlash, setRecentFlash] = useState(false);
+
+  // Debounce search
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(q), 300);
     return () => clearTimeout(t);
   }, [q]);
 
-  // Cargar plazas según filtros
+  // Fetch plazas
   useEffect(() => {
     const params = new URLSearchParams();
     if (debouncedQ) params.set("q", debouncedQ);
-    if (profesion) params.set("profesion", profesion);
+    if (profesiones.length > 0) params.set("profesiones", profesiones.join(","));
+    if (modalidad) params.set("modalidad", modalidad);
     if (gd) params.set("gd", gd);
     if (zaf !== null) params.set("zaf", String(zaf));
     if (ze !== null) params.set("ze", String(ze));
-    params.set("pageSize", "100");
+    if (departamento) params.set("departamento", departamento);
+    params.set("pageSize", "200");
 
     setLoading(true);
     fetch(`/api/plazas?${params.toString()}`)
       .then((r) => r.json())
       .then((res: ApiResponse) => {
-        setPlazas(res.data || []);
+        setPlazas(res.data ?? []);
         setTotal(res.pagination?.total ?? 0);
       })
       .catch((err) => console.error("Error fetching plazas:", err))
       .finally(() => setLoading(false));
-  }, [debouncedQ, profesion, gd, zaf, ze]);
+  }, [debouncedQ, profesiones, modalidad, gd, zaf, ze, departamento]);
 
-  const profesionesUnicas = useMemo(() => {
-    const set = new Set<string>();
-    plazas.forEach((p) => set.add(p.profesion_nombre));
-    return Array.from(set).sort();
-  }, [plazas]);
+  // Real-time adjudicaciones counter
+  useEffect(() => {
+    const supabase = createClient();
 
-  const hasActiveFilters = profesion !== null || gd !== null || zaf !== null || ze !== null;
+    supabase
+      .from("plaza_seleccion")
+      .select("id", { count: "exact", head: true })
+      .eq("semestre", "2026-I")
+      .eq("tipo", "adjudicada")
+      .then(({ count }) => setAdjudicaciones(count ?? 0));
+
+    const channel = supabase
+      .channel("adjudicaciones_live")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "plaza_seleccion" }, () => {
+        setAdjudicaciones((n) => n + 1);
+        setRecentFlash(true);
+        setTimeout(() => setRecentFlash(false), 2500);
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "plaza_seleccion" }, () => {
+        setAdjudicaciones((n) => Math.max(0, n - 1));
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  const toggleProfesion = useCallback((id: string) => {
+    setProfesiones((prev) => prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]);
+  }, []);
+
+  const clearAll = () => {
+    setProfesiones([]);
+    setModalidad(null);
+    setGd(null);
+    setZaf(null);
+    setZe(null);
+    setDepartamento(null);
+    setDeptSearch("");
+  };
+
+  const activeFilterCount =
+    profesiones.length +
+    (modalidad ? 1 : 0) +
+    (gd ? 1 : 0) +
+    (zaf !== null ? 1 : 0) +
+    (ze !== null ? 1 : 0) +
+    (departamento ? 1 : 0);
+
+  const filteredDepts = DEPARTAMENTOS.filter((d) =>
+    d.toLowerCase().includes(deptSearch.toLowerCase()),
+  );
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      {/* Sidebar */}
-      <aside className="flex w-full max-w-md flex-col border-r border-qn-border bg-qn-paper md:w-96">
-        {/* Search + filters toggle */}
-        <div className="border-b border-qn-border p-4">
-          <div className="relative">
-            <Search
-              size={16}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-qn-text-subtle"
-            />
-            <input
-              type="search"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Buscar establecimiento, distrito, profesión..."
-              className="w-full rounded-full border border-qn-border bg-qn-soft py-2 pl-9 pr-4 text-sm text-qn-ink placeholder:text-qn-text-subtle focus:border-qn-terracotta focus:outline-none focus:bg-qn-paper"
-            />
+      {/* Filter panel (LISA-style) */}
+      <aside
+        className={`flex-shrink-0 flex-col overflow-y-auto border-r border-qn-border bg-qn-paper transition-all duration-200 ${
+          showFilters ? "flex w-64" : "hidden"
+        }`}
+      >
+        {/* Filter header */}
+        <div className="flex items-center justify-between border-b border-qn-border px-4 py-3">
+          <span className="text-sm font-semibold text-qn-ink">Filtros</span>
+          <div className="flex items-center gap-2">
+            {activeFilterCount > 0 && (
+              <button
+                onClick={clearAll}
+                className="flex items-center gap-1 rounded-full bg-qn-terracotta/10 px-2 py-0.5 text-xs text-qn-terracotta hover:bg-qn-terracotta/20"
+              >
+                <X size={10} /> Limpiar ({activeFilterCount})
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Profesiones */}
+        <FilterSection title="Profesión" open={secProfOpen} onToggle={() => setSecProfOpen((v) => !v)}>
+          <div className="space-y-1.5">
+            {PROFESIONES.map((p) => (
+              <label key={p.id} className="flex cursor-pointer items-center gap-2 text-xs text-qn-text">
+                <input
+                  type="checkbox"
+                  checked={profesiones.includes(p.id)}
+                  onChange={() => toggleProfesion(p.id)}
+                  className="h-3.5 w-3.5 accent-qn-terracotta"
+                />
+                {p.label}
+              </label>
+            ))}
+          </div>
+        </FilterSection>
+
+        {/* Modalidad */}
+        <FilterSection title="Modalidad" open={secModalidadOpen} onToggle={() => setSecModalidadOpen((v) => !v)}>
+          <div className="flex flex-col gap-2">
+            {(["remunerada", "equivalente"] as const).map((m) => (
+              <label key={m} className="flex cursor-pointer items-center gap-2 text-xs text-qn-text">
+                <input
+                  type="radio"
+                  name="modalidad"
+                  checked={modalidad === m}
+                  onChange={() => setModalidad(modalidad === m ? null : m)}
+                  className="accent-qn-terracotta"
+                />
+                {m === "remunerada" ? "Remunerada" : "Equivalente (no remunerada)"}
+              </label>
+            ))}
+          </div>
+        </FilterSection>
+
+        {/* Ubicación */}
+        <FilterSection title="Departamento" open={secUbicOpen} onToggle={() => setSecUbicOpen((v) => !v)}>
+          <input
+            type="search"
+            value={deptSearch}
+            onChange={(e) => setDeptSearch(e.target.value)}
+            placeholder="Buscar departamento..."
+            className="mb-2 w-full rounded border border-qn-border bg-qn-soft px-2 py-1 text-xs text-qn-ink focus:outline-none focus:border-qn-terracotta"
+          />
+          <div className="max-h-48 space-y-1 overflow-y-auto">
+            {filteredDepts.map((d) => (
+              <label key={d} className="flex cursor-pointer items-center gap-2 text-xs text-qn-text">
+                <input
+                  type="radio"
+                  name="departamento"
+                  checked={departamento === d}
+                  onChange={() => setDepartamento(departamento === d ? null : d)}
+                  className="accent-qn-terracotta"
+                />
+                {d.charAt(0) + d.slice(1).toLowerCase()}
+              </label>
+            ))}
+          </div>
+        </FilterSection>
+
+        {/* GD */}
+        <FilterSection title="Grado de dificultad" open={secGdOpen} onToggle={() => setSecGdOpen((v) => !v)}>
+          <div className="space-y-1.5">
+            {GD_OPTIONS.map((g) => (
+              <label key={g} className="flex cursor-pointer items-center gap-2 text-xs text-qn-text">
+                <input
+                  type="radio"
+                  name="gd"
+                  checked={gd === g}
+                  onChange={() => setGd(gd === g ? null : g)}
+                  className="accent-qn-terracotta"
+                />
+                <span className={`rounded px-1.5 py-0.5 text-[10px] qn-gd-${g.split("-")[1]}`}>{g}</span>
+                {g === "GD-1" && " — Accesible"}
+                {g === "GD-2" && " — Moderado"}
+                {g === "GD-3" && " — Difícil"}
+                {g === "GD-4" && " — Muy difícil"}
+                {g === "GD-5" && " — Extremo"}
+              </label>
+            ))}
+          </div>
+        </FilterSection>
+
+        {/* Bonos */}
+        <FilterSection title="Bonos especiales" open={secBonosOpen} onToggle={() => setSecBonosOpen((v) => !v)}>
+          <div className="space-y-2">
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-qn-text">
+              <input
+                type="checkbox"
+                checked={zaf === true}
+                onChange={() => setZaf(zaf === true ? null : true)}
+                className="accent-qn-terracotta"
+              />
+              Zona Alejada y de Frontera (ZAF)
+            </label>
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-qn-text">
+              <input
+                type="checkbox"
+                checked={ze === true}
+                onChange={() => setZe(ze === true ? null : true)}
+                className="accent-qn-terracotta"
+              />
+              Zona de Emergencia · VRAEM (ZE)
+            </label>
+          </div>
+        </FilterSection>
+      </aside>
+
+      {/* Search + list sidebar */}
+      <aside className="flex w-full flex-shrink-0 flex-col border-r border-qn-border bg-qn-paper md:w-80">
+        {/* Search bar + filter toggle */}
+        <div className="border-b border-qn-border p-3">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search
+                size={14}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-qn-text-subtle"
+              />
+              <input
+                type="search"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Buscar establecimiento, lugar..."
+                className="w-full rounded-full border border-qn-border bg-qn-soft py-2 pl-8 pr-3 text-xs text-qn-ink placeholder:text-qn-text-subtle focus:border-qn-terracotta focus:outline-none"
+              />
+            </div>
+            <button
+              onClick={() => setShowFilters((v) => !v)}
+              className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border transition-colors ${
+                showFilters || activeFilterCount > 0
+                  ? "border-qn-terracotta bg-qn-terracotta text-white"
+                  : "border-qn-border text-qn-text-muted hover:border-qn-terracotta hover:text-qn-ink"
+              }`}
+              aria-label="Filtros"
+            >
+              <SlidersHorizontal size={15} />
+            </button>
           </div>
 
-          <div className="mt-3 flex items-center justify-between">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-1.5 text-xs text-qn-text-muted hover:text-qn-ink"
-            >
-              <Filter size={12} />
-              Filtros
-              {hasActiveFilters && (
-                <span className="rounded-full bg-qn-terracotta px-1.5 text-[10px] text-qn-bg">
-                  {[profesion, gd, zaf, ze].filter((v) => v !== null).length}
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-[11px] text-qn-text-subtle">
+              {loading ? "Buscando..." : `${total.toLocaleString("es-PE")} plazas`}
+            </span>
+            {activeFilterCount > 0 && (
+              <button
+                onClick={clearAll}
+                className="flex items-center gap-1 text-[11px] text-qn-rust hover:underline"
+              >
+                <X size={10} /> Limpiar ({activeFilterCount})
+              </button>
+            )}
+          </div>
+
+          {/* Active filter chips */}
+          {activeFilterCount > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {profesiones.map((id) => {
+                const p = PROFESIONES.find((x) => x.id === id);
+                return (
+                  <span
+                    key={id}
+                    className="flex items-center gap-1 rounded-full bg-qn-terracotta/10 px-2 py-0.5 text-[10px] text-qn-terracotta"
+                  >
+                    {p?.label ?? id}
+                    <button onClick={() => toggleProfesion(id)}><X size={9} /></button>
+                  </span>
+                );
+              })}
+              {modalidad && (
+                <span className="flex items-center gap-1 rounded-full bg-qn-ink/10 px-2 py-0.5 text-[10px] text-qn-ink">
+                  {modalidad === "remunerada" ? "Remunerada" : "Equivalente"}
+                  <button onClick={() => setModalidad(null)}><X size={9} /></button>
                 </span>
               )}
-            </button>
-            <span className="text-xs text-qn-text-subtle">
-              {loading ? "..." : `${total.toLocaleString("es-PE")} plazas`}
-            </span>
-          </div>
-
-          {showFilters && (
-            <div className="mt-3 space-y-3 border-t border-qn-border-soft pt-3">
-              {/* GD */}
-              <div>
-                <div className="mb-2 text-[10px] uppercase tracking-qn-wide text-qn-text-subtle">
-                  Grado de dificultad
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {GD_OPTIONS.map((g) => (
-                    <FilterChip key={g} active={gd === g} onClick={() => setGd(gd === g ? null : g)}>
-                      {g}
-                    </FilterChip>
-                  ))}
-                </div>
-              </div>
-
-              {/* Bonos */}
-              <div>
-                <div className="mb-2 text-[10px] uppercase tracking-qn-wide text-qn-text-subtle">
-                  Bonos
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  <FilterChip
-                    active={zaf === true}
-                    onClick={() => setZaf(zaf === true ? null : true)}
-                  >
-                    ZAF
-                  </FilterChip>
-                  <FilterChip active={ze === true} onClick={() => setZe(ze === true ? null : true)}>
-                    VRAEM (ZE)
-                  </FilterChip>
-                </div>
-              </div>
-
-              {hasActiveFilters && (
-                <button
-                  onClick={() => {
-                    setProfesion(null);
-                    setGd(null);
-                    setZaf(null);
-                    setZe(null);
-                  }}
-                  className="flex items-center gap-1 text-xs text-qn-rust hover:underline"
-                >
-                  <X size={12} /> Limpiar filtros
-                </button>
+              {departamento && (
+                <span className="flex items-center gap-1 rounded-full bg-qn-ink/10 px-2 py-0.5 text-[10px] text-qn-ink">
+                  {departamento.charAt(0) + departamento.slice(1).toLowerCase()}
+                  <button onClick={() => setDepartamento(null)}><X size={9} /></button>
+                </span>
+              )}
+              {gd && (
+                <span className="flex items-center gap-1 rounded-full bg-qn-ink/10 px-2 py-0.5 text-[10px] text-qn-ink">
+                  {gd}
+                  <button onClick={() => setGd(null)}><X size={9} /></button>
+                </span>
+              )}
+              {zaf && (
+                <span className="flex items-center gap-1 rounded-full bg-qn-ink/10 px-2 py-0.5 text-[10px] text-qn-ink">
+                  ZAF
+                  <button onClick={() => setZaf(null)}><X size={9} /></button>
+                </span>
+              )}
+              {ze && (
+                <span className="flex items-center gap-1 rounded-full bg-qn-ink/10 px-2 py-0.5 text-[10px] text-qn-ink">
+                  VRAEM
+                  <button onClick={() => setZe(null)}><X size={9} /></button>
+                </span>
               )}
             </div>
           )}
         </div>
 
-        {/* Lista */}
+        {/* Plaza list */}
         <div className="qn-scroll flex-1 overflow-y-auto">
           {loading && plazas.length === 0 ? (
             <div className="p-6 text-sm text-qn-text-muted">Cargando...</div>
@@ -197,12 +450,33 @@ export function PlazasExplorer() {
         </div>
       </aside>
 
-      {/* Mapa + panel de detalle */}
+      {/* Map area */}
       <div className="relative hidden flex-1 md:block">
         <LeafletMap plazas={plazas} selected={selected} onSelect={setSelected} />
+
         {selected && (
           <PlazaDetailPanel plaza={selected} onClose={() => setSelected(null)} />
         )}
+
+        {/* Real-time adjudicaciones counter */}
+        <div
+          className={`absolute bottom-4 left-4 z-[1000] flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs shadow-md transition-all ${
+            recentFlash
+              ? "border-green-300 bg-green-50 text-green-700"
+              : "border-qn-border bg-qn-paper/90 text-qn-text-muted backdrop-blur"
+          }`}
+        >
+          {recentFlash ? (
+            <CheckCircle2 size={13} className="text-green-600" />
+          ) : (
+            <Activity size={13} className={adjudicaciones > 0 ? "text-qn-terracotta" : ""} />
+          )}
+          {recentFlash
+            ? "¡Nueva adjudicación registrada!"
+            : adjudicaciones > 0
+              ? `${adjudicaciones} adjudicacion${adjudicaciones === 1 ? "" : "es"} SERUMS 2026-I`
+              : "En vivo · Nadie adjudicado aún"}
+        </div>
       </div>
     </div>
   );

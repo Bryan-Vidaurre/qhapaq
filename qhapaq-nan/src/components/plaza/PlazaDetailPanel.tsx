@@ -1,18 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import {
   X,
   MapPin,
   Mountain,
   ShieldAlert,
-  Building2,
-  Hash,
-  Users,
   ArrowUpRight,
+  CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import type { PlazaPublica } from "@/types/padron";
 import { Star5 } from "@/components/ui/Star5";
+import { createClient } from "@/lib/supabase/client";
 
 interface PlazaDetailPanelProps {
   plaza: PlazaPublica;
@@ -21,9 +22,37 @@ interface PlazaDetailPanelProps {
 
 export function PlazaDetailPanel({ plaza, onClose }: PlazaDetailPanelProps) {
   const gdNum = plaza.gd.split("-")[1];
+  const [adjudicando, setAdjudicando] = useState(false);
+  const [adjudicada, setAdjudicada] = useState(false);
+  const [adjError, setAdjError] = useState<string | null>(null);
+
+  async function handleAdjudicar() {
+    setAdjudicando(true);
+    setAdjError(null);
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setAdjError("Necesitas iniciar sesión para registrar tu adjudicación.");
+      setAdjudicando(false);
+      return;
+    }
+    const { error } = await supabase
+      .from("plaza_seleccion")
+      .upsert(
+        { plaza_id: plaza.id, user_id: user.id, semestre: "2026-I", tipo: "adjudicada" },
+        { onConflict: "user_id,semestre" },
+      );
+    if (error) {
+      setAdjError("Error al registrar. Intenta de nuevo.");
+    } else {
+      setAdjudicada(true);
+    }
+    setAdjudicando(false);
+  }
 
   return (
-    <div className="qn-scroll absolute right-4 top-4 max-h-[calc(100%-32px)] w-[420px] animate-qn-slide-in-right overflow-y-auto rounded-2xl border border-qn-border bg-qn-paper shadow-xl">
+    // z-[1000] supera los controles de Leaflet (z-index 800) y tiles (< 500)
+    <div className="qn-scroll absolute right-4 top-4 z-[1000] max-h-[calc(100%-32px)] w-[420px] animate-qn-slide-in-right overflow-y-auto rounded-2xl border border-qn-border bg-qn-paper shadow-xl">
       {/* Header */}
       <div className="sticky top-0 z-10 border-b border-qn-border-soft bg-qn-paper/95 px-6 py-4 backdrop-blur">
         <div className="flex items-start justify-between gap-3">
@@ -31,6 +60,11 @@ export function PlazaDetailPanel({ plaza, onClose }: PlazaDetailPanelProps) {
             <span className={`mb-2 inline-block rounded px-1.5 py-0.5 text-[10px] font-medium qn-gd-${gdNum}`}>
               {plaza.gd}
             </span>
+            {plaza.modalidad === "equivalente" && (
+              <span className="ml-1.5 inline-block rounded bg-qn-ink/10 px-1.5 py-0.5 text-[10px] text-qn-text-muted">
+                Equivalente
+              </span>
+            )}
             <h2 className="qn-display leading-tight text-qn-ink" style={{ fontSize: 22 }}>
               {plaza.establecimiento}
             </h2>
@@ -65,8 +99,7 @@ export function PlazaDetailPanel({ plaza, onClose }: PlazaDetailPanelProps) {
           </div>
         ) : (
           <div className="mb-4 rounded-xl border border-dashed border-qn-border bg-qn-warm p-3 text-xs text-qn-text-muted">
-            Aún no hay reseñas verificadas. Si serviste aquí, podrás reseñar tras los primeros
-            30 días con cuenta verificada.
+            Aún no hay reseñas. ¿Ya serviste aquí? ¡Sé el primero en reseñar!
           </div>
         )}
 
@@ -95,17 +128,46 @@ export function PlazaDetailPanel({ plaza, onClose }: PlazaDetailPanelProps) {
               {plaza.ze && (
                 <div className="flex items-center gap-1.5 rounded-full bg-qn-rust/10 px-3 py-1 text-xs text-qn-rust">
                   <ShieldAlert size={12} />
-                  Bono ZE (VRAEM, zona en emergencia)
+                  Bono ZE (VRAEM)
                 </div>
               )}
             </div>
           )}
         </div>
 
-        {/* Link a página de detalle (SEO friendly) */}
+        {/* Botón adjudicar */}
+        <div className="mt-5 border-t border-qn-border-soft pt-4">
+          {adjudicada ? (
+            <div className="flex items-center justify-center gap-2 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">
+              <CheckCircle2 size={16} />
+              ¡Adjudicación registrada! Aparecerás en el mapa en vivo.
+            </div>
+          ) : (
+            <button
+              onClick={handleAdjudicar}
+              disabled={adjudicando}
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-qn-terracotta px-4 py-2.5 text-sm text-white hover:bg-qn-terracotta-dark disabled:opacity-60"
+            >
+              {adjudicando ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <CheckCircle2 size={15} />
+              )}
+              Me adjudiqué esta plaza
+            </button>
+          )}
+          {adjError && (
+            <p className="mt-2 text-center text-xs text-qn-rust">{adjError}</p>
+          )}
+          <p className="mt-2 text-center text-[10px] text-qn-text-subtle">
+            Solo para el proceso SERUMS 2026-I · Actualiza el mapa en tiempo real
+          </p>
+        </div>
+
+        {/* Link a página de detalle */}
         <Link
           href={`/plazas/${plaza.renipress}`}
-          className="mt-6 flex items-center justify-center gap-1 rounded-full border border-qn-ink py-2.5 text-sm text-qn-ink hover:bg-qn-ink hover:text-qn-bg"
+          className="mt-3 flex items-center justify-center gap-1 rounded-full border border-qn-border py-2.5 text-sm text-qn-ink hover:bg-qn-soft"
         >
           Ver ficha completa <ArrowUpRight size={14} />
         </Link>

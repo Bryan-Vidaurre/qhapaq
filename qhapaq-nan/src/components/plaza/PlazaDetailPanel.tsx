@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import {
   X,
@@ -8,12 +7,9 @@ import {
   Mountain,
   ShieldAlert,
   ArrowUpRight,
-  CheckCircle2,
-  Loader2,
 } from "lucide-react";
 import type { PlazaPublica } from "@/types/padron";
 import { Star5 } from "@/components/ui/Star5";
-import { createClient } from "@/lib/supabase/client";
 
 interface PlazaDetailPanelProps {
   plaza: PlazaPublica;
@@ -22,33 +18,6 @@ interface PlazaDetailPanelProps {
 
 export function PlazaDetailPanel({ plaza, onClose }: PlazaDetailPanelProps) {
   const gdNum = plaza.gd.split("-")[1];
-  const [adjudicando, setAdjudicando] = useState(false);
-  const [adjudicada, setAdjudicada] = useState(false);
-  const [adjError, setAdjError] = useState<string | null>(null);
-
-  async function handleAdjudicar() {
-    setAdjudicando(true);
-    setAdjError(null);
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setAdjError("Necesitas iniciar sesión para registrar tu adjudicación.");
-      setAdjudicando(false);
-      return;
-    }
-    const { error } = await supabase
-      .from("plaza_seleccion")
-      .upsert(
-        { plaza_id: plaza.id, user_id: user.id, semestre: "2026-I", tipo: "adjudicada" },
-        { onConflict: "user_id,semestre" },
-      );
-    if (error) {
-      setAdjError("Error al registrar. Intenta de nuevo.");
-    } else {
-      setAdjudicada(true);
-    }
-    setAdjudicando(false);
-  }
 
   return (
     // z-[1000] supera los controles de Leaflet (z-index 800) y tiles (< 500)
@@ -135,39 +104,10 @@ export function PlazaDetailPanel({ plaza, onClose }: PlazaDetailPanelProps) {
           )}
         </div>
 
-        {/* Botón adjudicar */}
-        <div className="mt-5 border-t border-qn-border-soft pt-4">
-          {adjudicada ? (
-            <div className="flex items-center justify-center gap-2 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">
-              <CheckCircle2 size={16} />
-              ¡Adjudicación registrada! Aparecerás en el mapa en vivo.
-            </div>
-          ) : (
-            <button
-              onClick={handleAdjudicar}
-              disabled={adjudicando}
-              className="flex w-full items-center justify-center gap-2 rounded-full bg-qn-terracotta px-4 py-2.5 text-sm text-white hover:bg-qn-terracotta-dark disabled:opacity-60"
-            >
-              {adjudicando ? (
-                <Loader2 size={15} className="animate-spin" />
-              ) : (
-                <CheckCircle2 size={15} />
-              )}
-              Me adjudiqué esta plaza
-            </button>
-          )}
-          {adjError && (
-            <p className="mt-2 text-center text-xs text-qn-rust">{adjError}</p>
-          )}
-          <p className="mt-2 text-center text-[10px] text-qn-text-subtle">
-            Solo para el proceso SERUMS 2026-I · Actualiza el mapa en tiempo real
-          </p>
-        </div>
-
         {/* Link a página de detalle */}
         <Link
           href={`/plazas/${plaza.renipress}`}
-          className="mt-3 flex items-center justify-center gap-1 rounded-full border border-qn-border py-2.5 text-sm text-qn-ink hover:bg-qn-soft"
+          className="mt-6 flex items-center justify-center gap-1 rounded-full border border-qn-border py-2.5 text-sm text-qn-ink hover:bg-qn-soft"
         >
           Ver ficha completa <ArrowUpRight size={14} />
         </Link>

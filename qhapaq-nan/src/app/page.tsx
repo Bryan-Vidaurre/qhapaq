@@ -30,10 +30,10 @@ export default function LandingPage() {
               Mapa de plazas
             </Link>
             <Link
-              href="/auth/magic-link"
+              href="/auth/signup"
               className="rounded-full bg-qn-ink px-4 py-2 text-sm text-qn-bg"
             >
-              Entrar
+              Crear cuenta
             </Link>
           </nav>
         </div>
@@ -57,16 +57,16 @@ export default function LandingPage() {
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Link
-            href="/plazas"
+            href="/auth/signup"
             className="flex h-12 items-center gap-2 rounded-full bg-qn-ink px-7 text-sm font-medium text-qn-bg"
           >
-            Explorar el mapa <ArrowRight size={16} />
+            Crear cuenta gratis <ArrowRight size={16} />
           </Link>
           <Link
-            href="/auth/magic-link"
+            href="/plazas"
             className="flex h-12 items-center gap-2 rounded-full border border-qn-border bg-qn-paper px-7 text-sm font-medium text-qn-ink hover:border-qn-terracotta"
           >
-            Crear cuenta gratis
+            Explorar el mapa
           </Link>
         </div>
       </section>

@@ -6,6 +6,8 @@ import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 const BodySchema = z.object({
   email: z.string().email().toLowerCase().trim(),
   redirectTo: z.string().startsWith("/").default("/"),
+  nombre: z.string().min(1).max(100).optional(),
+  profesion_id: z.string().max(80).nullable().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -16,7 +18,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Correo inválido" }, { status: 400 });
   }
 
-  const { email, redirectTo } = parsed.data;
+  const { email, redirectTo, nombre, profesion_id } = parsed.data;
 
   // Rate limit por email (3 intentos / 15 min)
   const ok = await checkRateLimit(
@@ -40,8 +42,13 @@ export async function POST(request: NextRequest) {
     email,
     options: {
       emailRedirectTo: callback,
-      // Permite registro automático si el correo aún no existe
       shouldCreateUser: true,
+      // Metadata guardada en auth.users.raw_user_meta_data
+      // El trigger handle_new_user() la lee para crear el perfil
+      data: {
+        ...(nombre ? { nombre_publico: nombre } : {}),
+        ...(profesion_id ? { profesion_id } : {}),
+      },
     },
   });
 

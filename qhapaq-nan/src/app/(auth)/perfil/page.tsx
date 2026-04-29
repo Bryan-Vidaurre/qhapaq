@@ -8,7 +8,7 @@ import { DeleteAccountForm } from "@/components/perfil/DeleteAccountForm";
 import { VerificationBadge } from "@/components/perfil/VerificationBadge";
 import {
   ShieldCheck, Pencil, Download, ChevronRight,
-  MapPin, Star, Calendar,
+  MapPin, Star, Calendar, ExternalLink,
 } from "lucide-react";
 
 export const metadata = { title: "Mi perfil · Qhapaq Ñan" };
@@ -72,9 +72,18 @@ export default async function PerfilPage() {
 
             {/* Nombre + profesión + badge */}
             <div className="mt-3">
-              <h1 className="qn-display text-2xl leading-tight text-qn-ink">
-                {perfil.nombre_publico}
-              </h1>
+              <div className="flex items-start justify-between gap-2">
+                <h1 className="qn-display text-2xl leading-tight text-qn-ink">
+                  {perfil.nombre_publico}
+                </h1>
+                <Link
+                  href={`/u/${perfil.user_id}`}
+                  className="flex shrink-0 items-center gap-1 text-[11px] text-qn-text-subtle hover:text-qn-terracotta"
+                  title="Ver perfil público"
+                >
+                  <ExternalLink size={11} /> Ver perfil público
+                </Link>
+              </div>
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 {profesion && (
                   <span className="text-sm text-qn-text-muted">{profesion}</span>

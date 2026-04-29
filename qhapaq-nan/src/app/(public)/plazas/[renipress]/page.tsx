@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, MapPin, Building2 } from "lucide-react";
+import { ArrowLeft, MapPin } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Star5 } from "@/components/ui/Star5";
 import { createClient } from "@/lib/supabase/server";
+import { getProfile } from "@/lib/auth";
+import { PlazaReviewsSection } from "@/components/plaza/PlazaReviewsSection";
 import type { PlazaPublica } from "@/types/padron";
 
 interface PageProps {
@@ -30,11 +32,12 @@ export async function generateMetadata({ params }: PageProps) {
 export default async function PlazaDetailPage({ params }: PageProps) {
   const supabase = createClient();
 
-  const { data: plazas } = await supabase
-    .from("plazas_publicas")
-    .select("*")
-    .eq("renipress", params.renipress);
+  const [plazasRes, perfil] = await Promise.all([
+    supabase.from("plazas_publicas").select("*").eq("renipress", params.renipress),
+    getProfile(),
+  ]);
 
+  const plazas = plazasRes.data;
   if (!plazas || plazas.length === 0) notFound();
 
   const principal = plazas[0] as PlazaPublica;
@@ -104,27 +107,23 @@ export default async function PlazaDetailPage({ params }: PageProps) {
             </div>
           </div>
 
-          {/* Reseñas — placeholder en v0.1 */}
+          {/* Resumen de rating (si hay reseñas) */}
           {principal.total_reviews > 0 && principal.avg_rating ? (
-            <div className="mt-6 rounded-xl bg-qn-soft p-5">
-              <div className="flex items-center gap-2">
-                <Star5 value={principal.avg_rating} size={16} />
-                <span className="text-sm font-medium text-qn-ink">
-                  {principal.avg_rating.toFixed(1)}
-                </span>
-                <span className="text-xs text-qn-text-muted">
-                  ({principal.total_reviews}{" "}
-                  {principal.total_reviews === 1 ? "reseña" : "reseñas"})
-                </span>
-              </div>
+            <div className="mt-6 flex items-center gap-2 rounded-xl bg-qn-soft p-4">
+              <Star5 value={principal.avg_rating} size={16} />
+              <span className="text-sm font-medium text-qn-ink">
+                {principal.avg_rating.toFixed(1)}
+              </span>
+              <span className="text-xs text-qn-text-muted">
+                ({principal.total_reviews}{" "}
+                {principal.total_reviews === 1 ? "reseña verificada" : "reseñas verificadas"})
+              </span>
             </div>
-          ) : (
-            <div className="mt-6 rounded-xl border border-dashed border-qn-border bg-qn-warm p-5 text-sm text-qn-text-muted">
-              Aún no hay reseñas verificadas para este establecimiento. El sistema de reseñas
-              entra en v0.2.
-            </div>
-          )}
+          ) : null}
         </div>
+
+        {/* Sección de reseñas */}
+        <PlazaReviewsSection renipress={params.renipress} perfil={perfil} />
       </main>
     </div>
   );

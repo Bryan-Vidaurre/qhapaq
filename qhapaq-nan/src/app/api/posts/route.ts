@@ -15,6 +15,7 @@ const QuerySchema = z.object({
   sort: z.enum(["reciente", "popular"]).default("reciente"),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(50).default(20),
+  user_id: z.string().uuid().optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Parámetros inválidos" }, { status: 400 });
   }
 
-  const { tipo, sort, page, pageSize } = parsed.data;
+  const { tipo, sort, page, pageSize, user_id } = parsed.data;
   const supabase = createClient();
 
   // Determine if user is authenticated to include has_liked
@@ -37,6 +38,7 @@ export async function GET(request: NextRequest) {
     .order(orderCol, { ascending: false });
 
   if (tipo) query = query.eq("tipo", tipo);
+  if (user_id) query = query.eq("user_id", user_id);
 
   const from = (page - 1) * pageSize;
   query = query.range(from, from + pageSize - 1);

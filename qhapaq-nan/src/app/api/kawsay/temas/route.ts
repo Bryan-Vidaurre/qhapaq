@@ -10,6 +10,7 @@ const QuerySchema = z.object({
   sort: z.enum(["reciente", "popular", "activo", "sin_respuesta"]).default("reciente"),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(50).default(25),
+  user_id: z.string().uuid().optional(),
 });
 
 const CreateSchema = z.object({
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
   const parsed = QuerySchema.safeParse(params);
   if (!parsed.success) return NextResponse.json({ error: "Parámetros inválidos" }, { status: 400 });
 
-  const { categoria, sort, page, pageSize } = parsed.data;
+  const { categoria, sort, page, pageSize, user_id } = parsed.data;
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -42,6 +43,7 @@ export async function GET(request: NextRequest) {
     .order(orderCol, { ascending: false });
 
   if (categoria) query = query.eq("categoria", categoria);
+  if (user_id) query = query.eq("user_id", user_id);
   if (sort === "sin_respuesta") query = query.eq("replies_count", 0);
 
   const from = (page - 1) * pageSize;

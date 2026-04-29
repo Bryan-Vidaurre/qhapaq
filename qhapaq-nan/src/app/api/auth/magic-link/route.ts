@@ -34,8 +34,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || request.nextUrl.origin;
-  const callback = `${siteUrl}/auth/callback?next=${encodeURIComponent(redirectTo)}`;
+  // En dev usa el origen del request (localhost). En prod usa NEXT_PUBLIC_SITE_URL.
+  const origin =
+    process.env.NODE_ENV === "production"
+      ? (process.env.NEXT_PUBLIC_SITE_URL ?? request.nextUrl.origin)
+      : request.nextUrl.origin;
+  const callback = `${origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`;
 
   const supabase = createClient();
   const { error } = await supabase.auth.signInWithOtp({
@@ -54,9 +58,9 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     console.error("magic link error:", error.message);
-    // Mensaje genérico — no filtrar si el correo está registrado o no
+    const isDev = process.env.NODE_ENV !== "production";
     return NextResponse.json(
-      { error: "No pudimos enviar el enlace. Reintenta en unos segundos." },
+      { error: isDev ? error.message : "No pudimos enviar el enlace. Reintenta en unos segundos." },
       { status: 500 },
     );
   }

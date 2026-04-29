@@ -40,7 +40,7 @@ const QuerySchema = z.object({
     .regex(/^-?\d+(\.\d+)?,-?\d+(\.\d+)?,-?\d+(\.\d+)?,-?\d+(\.\d+)?$/)
     .optional(),
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(200).default(50),
+  pageSize: z.coerce.number().int().min(1).max(2000).default(50),
 });
 
 export async function GET(request: NextRequest) {

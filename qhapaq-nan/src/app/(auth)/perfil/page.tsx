@@ -1,13 +1,27 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/auth";
 import { LogoutButton } from "@/components/perfil/LogoutButton";
 import { DeleteAccountForm } from "@/components/perfil/DeleteAccountForm";
+import { VerificationBadge } from "@/components/perfil/VerificationBadge";
+import {
+  ShieldCheck, Pencil, Download, ChevronRight,
+  MapPin, Star, Calendar,
+} from "lucide-react";
 
-export const metadata = {
-  title: "Mi perfil",
+export const metadata = { title: "Mi perfil · Qhapaq Ñan" };
+
+const PROFESION_LABEL: Record<string, string> = {
+  "MEDICINA": "Medicina", "ENFERMERIA": "Enfermería", "OBSTETRICIA": "Obstetricia",
+  "ODONTOLOGIA": "Odontología", "PSICOLOGIA": "Psicología", "NUTRICION": "Nutrición",
+  "QUIMICO FARMACEUTICO": "Quím. Farmacéutico", "BIOLOGIA": "Biología",
+  "TRABAJO SOCIAL": "Trabajo Social", "MEDICINA VETERINARIA": "Med. Veterinaria",
+  "INGENIERIA SANITARIA": "Ing. Sanitaria", "TM - LABORATORIO CLINICO": "T.M. Laboratorio",
+  "TM - TERAPIA FISICA": "T.M. Terapia Física", "TM - RADIOLOGIA": "T.M. Radiología",
+  "TM - TERAPIA LENGUAJE": "T.M. T. Lenguaje", "TM - TERAPIA OCUPACIONAL": "T.M. T. Ocupacional",
+  "TM - OPTOMETRIA": "T.M. Optometría",
 };
 
 export default async function PerfilPage() {
@@ -15,123 +29,141 @@ export default async function PerfilPage() {
   if (!perfil) redirect("/auth/magic-link?from=/perfil");
 
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const iniciales = perfil.nombre_publico
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+
+  const profesion = perfil.profesion_declarada_id
+    ? (PROFESION_LABEL[perfil.profesion_declarada_id] ?? perfil.profesion_declarada_id)
+    : null;
+
+  const miembroDesde = new Date(perfil.created_at).toLocaleDateString("es-PE", {
+    month: "long", year: "numeric",
+  });
 
   return (
     <div className="min-h-screen bg-qn-bg">
       <Header />
 
-      <main className="mx-auto max-w-2xl px-6 py-10">
-        <h1 className="qn-display mb-8 text-qn-ink" style={{ fontSize: 36 }}>
-          Mi perfil
-        </h1>
+      <main className="mx-auto max-w-2xl px-4 py-8">
 
-        <div className="space-y-4">
-          {/* Identidad */}
-          <Section title="Identidad">
-            <Field label="Nombre público" value={perfil.nombre_publico} />
-            <Field label="Correo" value={user?.email ?? "—"} />
-            <Field
-              label="Tipo de cuenta"
-              value={perfil.kind === "general" ? "General" : "Profesional"}
-            />
-            {perfil.prof_level && (
-              <Field
-                label="Nivel"
-                value={
-                  perfil.prof_level === "autodeclarado"
-                    ? "Autodeclarado (sin verificar)"
-                    : perfil.prof_level === "estudiante"
-                      ? "Estudiante verificado"
-                      : perfil.prof_level === "egresado"
-                        ? "Egresado verificado"
-                        : perfil.prof_level === "colegiado"
-                          ? "Colegiado verificado"
-                          : perfil.prof_level === "serums_activo"
-                            ? "SERUMS activo"
-                            : "Profesional perenne"
-                }
-              />
-            )}
-            <Field label="Yachay" value={String(perfil.yachay)} />
-          </Section>
+        {/* ── Tarjeta de identidad ── */}
+        <div className="mb-4 overflow-hidden rounded-3xl border border-qn-border bg-qn-paper shadow-sm">
+          {/* Franja decorativa */}
+          <div className="h-20 bg-gradient-to-r from-qn-ink via-qn-brown to-qn-terracotta" />
 
-          {/* Verificación CTA */}
-          {perfil.kind === "general" && (
-            <Section title="Verificarme como profesional">
-              <p className="text-sm text-qn-text-muted">
-                Si trabajas en salud, puedes verificarte para acceder a marketplace, foros y
-                reseñas. La verificación es manual y toma 1–3 días hábiles.
-              </p>
-              <p className="mt-3 text-xs italic text-qn-text-subtle">
-                Disponible en v0.2 — el sistema de verificación con documentos y revisión manual
-                entra en el siguiente sprint.
-              </p>
-            </Section>
-          )}
-
-          {/* Privacidad y datos */}
-          <Section title="Mis datos">
-            <p className="text-sm text-qn-text-muted">
-              Bajo la Ley 29733 tienes derecho a acceder, rectificar, cancelar y oponerte al
-              tratamiento de tus datos personales (derechos ARCO).
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <a
-                href="/api/me/export"
-                className="rounded-full border border-qn-border bg-qn-paper px-4 py-2 text-xs text-qn-ink hover:border-qn-terracotta"
-                download
+          <div className="px-6 pb-6">
+            {/* Avatar + botón editar */}
+            <div className="flex items-end justify-between">
+              <div className="-mt-10 flex h-20 w-20 items-center justify-center rounded-full border-4 border-qn-paper bg-qn-ink text-2xl font-semibold text-qn-gold">
+                {iniciales}
+              </div>
+              <Link
+                href="/perfil/editar"
+                className="flex items-center gap-1.5 rounded-full border border-qn-border px-4 py-2 text-sm text-qn-ink hover:border-qn-terracotta"
               >
-                Descargar mis datos (JSON)
-              </a>
+                <Pencil size={13} /> Editar
+              </Link>
             </div>
-          </Section>
 
-          {/* Eliminar cuenta */}
-          <Section title="Eliminar mi cuenta" tone="danger">
-            <DeleteAccountForm />
-          </Section>
+            {/* Nombre + profesión + badge */}
+            <div className="mt-3">
+              <h1 className="qn-display text-2xl leading-tight text-qn-ink">
+                {perfil.nombre_publico}
+              </h1>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                {profesion && (
+                  <span className="text-sm text-qn-text-muted">{profesion}</span>
+                )}
+                {perfil.prof_level && (
+                  <VerificationBadge level={perfil.prof_level} size="sm" />
+                )}
+                {!perfil.prof_level && (
+                  <span className="rounded-full border border-qn-border px-2 py-0.5 text-[10px] text-qn-text-subtle">
+                    Sin verificar
+                  </span>
+                )}
+              </div>
+              {perfil.bio && (
+                <p className="mt-2 text-sm leading-relaxed text-qn-text-muted">{perfil.bio}</p>
+              )}
+            </div>
 
-          {/* Logout */}
-          <Section title="Cerrar sesión">
-            <LogoutButton />
-          </Section>
+            {/* Stats rápidos */}
+            <div className="mt-4 flex flex-wrap gap-4 border-t border-qn-border-soft pt-4 text-xs text-qn-text-subtle">
+              <span className="flex items-center gap-1">
+                <Star size={12} className="text-qn-gold" />
+                {perfil.yachay} Yachay
+              </span>
+              <span className="flex items-center gap-1">
+                <Calendar size={12} />
+                Desde {miembroDesde}
+              </span>
+              {user?.email && (
+                <span className="flex items-center gap-1">
+                  <MapPin size={12} />
+                  {user.email}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Verificación de identidad ── */}
+        <Link
+          href="/perfil/verificacion"
+          className="mb-4 flex items-center justify-between rounded-2xl border border-qn-border bg-qn-paper p-5 shadow-sm hover:border-qn-terracotta transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-qn-ink">
+              <ShieldCheck size={18} color="var(--qn-gold)" />
+            </div>
+            <div>
+              <div className="text-sm font-semibold text-qn-ink">Verificación de identidad</div>
+              <div className="text-xs text-qn-text-muted">
+                {perfil.prof_level === "autodeclarado" || !perfil.prof_level
+                  ? "Sube tu nivel — desbloquea reseñas y más funciones"
+                  : perfil.prof_level === "serums_activo" || perfil.prof_level === "perenne"
+                    ? "Nivel máximo alcanzado · Puedes reseñar plazas"
+                    : "Continúa verificando para acceder a todas las funciones"}
+              </div>
+            </div>
+          </div>
+          <ChevronRight size={18} className="text-qn-text-subtle" />
+        </Link>
+
+        {/* ── Mis datos (ARCO) ── */}
+        <div className="mb-4 rounded-2xl border border-qn-border bg-qn-paper p-5 shadow-sm">
+          <h2 className="qn-display mb-3 text-lg text-qn-ink">Mis datos</h2>
+          <p className="mb-3 text-sm text-qn-text-muted">
+            Bajo la Ley 29733 tienes derecho a acceder, rectificar, cancelar y oponerte al
+            tratamiento de tus datos personales (derechos ARCO).
+          </p>
+          <a
+            href="/api/me/export"
+            download
+            className="inline-flex items-center gap-2 rounded-full border border-qn-border px-4 py-2 text-xs text-qn-ink hover:border-qn-terracotta"
+          >
+            <Download size={13} /> Descargar mis datos (JSON)
+          </a>
+        </div>
+
+        {/* ── Zona peligrosa ── */}
+        <div className="mb-4 rounded-2xl border border-qn-rust/30 bg-qn-paper p-5 shadow-sm">
+          <h2 className="qn-display mb-3 text-lg text-qn-ink">Eliminar cuenta</h2>
+          <DeleteAccountForm />
+        </div>
+
+        {/* ── Cerrar sesión ── */}
+        <div className="rounded-2xl border border-qn-border bg-qn-paper p-5 shadow-sm">
+          <h2 className="qn-display mb-3 text-lg text-qn-ink">Cerrar sesión</h2>
+          <LogoutButton />
         </div>
       </main>
-    </div>
-  );
-}
-
-function Section({
-  title,
-  children,
-  tone,
-}: {
-  title: string;
-  children: React.ReactNode;
-  tone?: "danger";
-}) {
-  return (
-    <section
-      className={`rounded-2xl border bg-qn-paper p-6 ${
-        tone === "danger" ? "border-qn-rust/30" : "border-qn-border"
-      }`}
-    >
-      <h2 className="qn-display mb-4 text-qn-ink" style={{ fontSize: 18 }}>
-        {title}
-      </h2>
-      <div className="space-y-2">{children}</div>
-    </section>
-  );
-}
-
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 border-b border-qn-border-soft pb-2 last:border-0">
-      <span className="text-xs uppercase tracking-qn-wide text-qn-text-subtle">{label}</span>
-      <span className="text-right text-sm text-qn-ink">{value}</span>
     </div>
   );
 }

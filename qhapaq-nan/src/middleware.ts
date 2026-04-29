@@ -36,16 +36,44 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const pathname = request.nextUrl.pathname;
+
   // Rutas que requieren auth
   const requiresAuth =
-    request.nextUrl.pathname.startsWith("/perfil") ||
-    request.nextUrl.pathname.startsWith("/api/me");
+    pathname.startsWith("/perfil") ||
+    pathname.startsWith("/api/me") ||
+    pathname.startsWith("/onboarding") ||
+    pathname.startsWith("/yachay") ||
+    pathname.startsWith("/qhatus") ||
+    pathname.startsWith("/kawsay");
 
   if (requiresAuth && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/magic-link";
-    url.searchParams.set("from", request.nextUrl.pathname);
+    url.searchParams.set("from", pathname);
     return NextResponse.redirect(url);
+  }
+
+  // Si el usuario está autenticado en rutas protegidas (no /api ni /auth ni /onboarding),
+  // verificar si completó el onboarding y redirigir si no.
+  if (
+    user &&
+    !pathname.startsWith("/onboarding") &&
+    !pathname.startsWith("/api/") &&
+    !pathname.startsWith("/auth/") &&
+    (pathname.startsWith("/perfil") || pathname === "/plazas")
+  ) {
+    const { data: perfil } = await supabase
+      .from("perfiles")
+      .select("onboarding_completado")
+      .eq("user_id", user.id)
+      .single();
+
+    if (perfil && !perfil.onboarding_completado) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/onboarding";
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;

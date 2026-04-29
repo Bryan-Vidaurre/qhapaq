@@ -109,7 +109,8 @@ export function PlazasExplorer() {
   const [secBonosOpen, setSecBonosOpen] = useState(false);
 
   // Data state
-  const [plazas, setPlazas] = useState<PlazaPublica[]>([]);
+  const [plazas, setPlazas] = useState<PlazaPublica[]>([]);      // list (filtered+search)
+  const [mapPlazas, setMapPlazas] = useState<PlazaPublica[]>([]); // map (all, spatial filters only)
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<PlazaPublica | null>(null);
@@ -124,7 +125,7 @@ export function PlazasExplorer() {
     return () => clearTimeout(t);
   }, [q]);
 
-  // Fetch plazas
+  // ── Fetch list (filtered + search, paginated) ──────────────────────────
   useEffect(() => {
     const params = new URLSearchParams();
     if (debouncedQ) params.set("q", debouncedQ);
@@ -134,7 +135,7 @@ export function PlazasExplorer() {
     if (zaf !== null) params.set("zaf", String(zaf));
     if (ze !== null) params.set("ze", String(ze));
     if (departamento) params.set("departamento", departamento);
-    params.set("pageSize", "200");
+    params.set("pageSize", "100");
 
     setLoading(true);
     fetch(`/api/plazas?${params.toString()}`)
@@ -143,9 +144,51 @@ export function PlazasExplorer() {
         setPlazas(res.data ?? []);
         setTotal(res.pagination?.total ?? 0);
       })
-      .catch((err) => console.error("Error fetching plazas:", err))
+      .catch((err) => console.error("Error fetching list:", err))
       .finally(() => setLoading(false));
   }, [debouncedQ, profesiones, modalidad, gd, zaf, ze, departamento]);
+
+  // ── Fetch map plazas (ALL, spatial filters only, parallel batches) ──────
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadMap() {
+      const PAGE_SIZE = 2000;
+      const base = new URLSearchParams();
+      if (profesiones.length > 0) base.set("profesiones", profesiones.join(","));
+      if (modalidad) base.set("modalidad", modalidad);
+      if (gd) base.set("gd", gd);
+      if (zaf !== null) base.set("zaf", String(zaf));
+      if (ze !== null) base.set("ze", String(ze));
+      if (departamento) base.set("departamento", departamento);
+      base.set("pageSize", String(PAGE_SIZE));
+      base.set("page", "1");
+
+      try {
+        const first = await fetch(`/api/plazas?${base.toString()}`).then((r) => r.json()) as ApiResponse;
+        if (cancelled) return;
+        setMapPlazas(first.data ?? []);
+
+        const totalPages = first.pagination?.totalPages ?? 1;
+        if (totalPages > 1) {
+          const rest = await Promise.all(
+            Array.from({ length: totalPages - 1 }, (_, i) => {
+              const p = new URLSearchParams(base);
+              p.set("page", String(i + 2));
+              return fetch(`/api/plazas?${p.toString()}`).then((r) => r.json()) as Promise<ApiResponse>;
+            }),
+          );
+          if (cancelled) return;
+          setMapPlazas((prev) => [...prev, ...rest.flatMap((r) => r.data ?? [])]);
+        }
+      } catch (err) {
+        console.error("Error loading map plazas:", err);
+      }
+    }
+
+    loadMap();
+    return () => { cancelled = true; };
+  }, [profesiones, modalidad, gd, zaf, ze, departamento]);
 
   // Real-time adjudicaciones counter
   useEffect(() => {
@@ -452,7 +495,7 @@ export function PlazasExplorer() {
 
       {/* Map area */}
       <div className="relative hidden flex-1 md:block">
-        <LeafletMap plazas={plazas} selected={selected} onSelect={setSelected} />
+        <LeafletMap plazas={mapPlazas} selected={selected} onSelect={setSelected} />
 
         {selected && (
           <PlazaDetailPanel plaza={selected} onClose={() => setSelected(null)} />

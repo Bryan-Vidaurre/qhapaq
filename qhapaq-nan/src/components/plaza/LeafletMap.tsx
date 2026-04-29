@@ -18,18 +18,56 @@ const GD_COLORS: Record<string, string> = {
 };
 
 function makeMarkerIcon(color: string, isSelected: boolean) {
-  const size = isSelected ? 20 : 14;
+  if (isSelected) {
+    // Pulsing ripple for selected marker
+    return L.divIcon({
+      className: "",
+      html: `
+        <style>
+          @keyframes qn-pulse {
+            0%   { transform:scale(1);   opacity:.8; }
+            70%  { transform:scale(2.8); opacity:0; }
+            100% { transform:scale(1);   opacity:0; }
+          }
+          @keyframes qn-pulse2 {
+            0%   { transform:scale(1);   opacity:.5; }
+            70%  { transform:scale(2.2); opacity:0; }
+            100% { transform:scale(1);   opacity:0; }
+          }
+        </style>
+        <div style="position:relative;width:22px;height:22px;">
+          <div style="
+            position:absolute;inset:0;border-radius:50%;
+            background:${color};opacity:.25;
+            animation:qn-pulse 1.8s ease-out infinite;
+          "></div>
+          <div style="
+            position:absolute;inset:0;border-radius:50%;
+            background:${color};opacity:.18;
+            animation:qn-pulse2 1.8s ease-out .4s infinite;
+          "></div>
+          <div style="
+            position:absolute;inset:3px;border-radius:50%;
+            background:${color};
+            border:2.5px solid #fff;
+            box-shadow:0 2px 8px rgba(0,0,0,.5);
+          "></div>
+        </div>`,
+      iconSize: [22, 22],
+      iconAnchor: [11, 11],
+    });
+  }
   return L.divIcon({
     className: "",
     html: `<div style="
-      width:${size}px;height:${size}px;
+      width:14px;height:14px;
       background:${color};
       border:2.5px solid #fff;
       border-radius:50%;
       box-shadow:0 2px 6px rgba(0,0,0,.35);
     "></div>`,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
   });
 }
 

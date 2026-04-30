@@ -1,49 +1,11 @@
 import Link from "next/link";
-import { ArrowRight, MapPin, Users, Sparkles, MessageSquare, BookOpen, ShoppingBag, Star } from "lucide-react";
-import { ChakanaIcon } from "@/components/ui/ChakanaIcon";
+import { ArrowRight, MapPin, Users, MessageSquare, BookOpen, ShoppingBag, Star } from "lucide-react";
+import { Header } from "@/components/layout/Header";
 
 export default function LandingPage() {
   return (
     <main className="min-h-screen bg-qn-bg">
-      {/* Header */}
-      <header className="qn-bg-cream-glass sticky top-0 z-30 border-b border-qn-border">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-qn-ink">
-              <ChakanaIcon size={20} color="var(--qn-gold)" />
-            </div>
-            <div>
-              <div className="qn-display-italic leading-none text-qn-ink" style={{ fontSize: 22 }}>
-                qhapaq ñan
-              </div>
-              <div className="mt-1 text-[10px] uppercase tracking-qn-extra text-qn-text-subtle">
-                Red de caminos
-              </div>
-            </div>
-          </div>
-
-          <nav className="flex items-center gap-2">
-            <Link
-              href="/plazas"
-              className="hidden rounded-full px-3 py-2 text-sm text-qn-text-muted hover:bg-qn-soft hover:text-qn-ink sm:inline"
-            >
-              Mapa
-            </Link>
-            <Link
-              href="/auth/magic-link"
-              className="hidden rounded-full px-3 py-2 text-sm text-qn-text-muted hover:bg-qn-soft hover:text-qn-ink sm:inline"
-            >
-              Iniciar sesión
-            </Link>
-            <Link
-              href="/auth/signup"
-              className="rounded-full bg-qn-ink px-4 py-2 text-sm font-medium text-qn-bg"
-            >
-              Crear cuenta
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <Header />
 
       {/* Hero */}
       <section className="mx-auto max-w-4xl px-6 py-20 text-center">

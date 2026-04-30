@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, MapPin, Users, MessageSquare, BookOpen, ShoppingBag, Star } from "lucide-react";
 import { Header } from "@/components/layout/Header";
+import { QuechuaNamesButton } from "@/components/ui/QuechuaNamesModal";
 
 export default function LandingPage() {
   return (
@@ -36,6 +37,9 @@ export default function LandingPage() {
           >
             Explorar el mapa
           </Link>
+        </div>
+        <div className="mt-6 flex justify-center">
+          <QuechuaNamesButton />
         </div>
       </section>
 

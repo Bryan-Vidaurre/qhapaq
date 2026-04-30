@@ -26,6 +26,10 @@ export async function Header() {
 
         <nav className="flex items-center gap-1">
           {/* Siempre visible */}
+          <Link href="/"
+            className="hidden rounded-full px-3 py-2 text-sm text-qn-text-muted hover:bg-qn-soft hover:text-qn-ink md:inline">
+            Inicio
+          </Link>
           <Link href="/plazas"
             className="rounded-full px-3 py-2 text-sm text-qn-text-muted hover:bg-qn-soft hover:text-qn-ink">
             Mapa
